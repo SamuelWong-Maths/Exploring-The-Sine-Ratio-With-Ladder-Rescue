@@ -80,7 +80,13 @@
     let sceneMsg = '';
     let rescued = false;
     let tryAgain = false;
-    let rescuerProgress = 0;
+    let animationFrame = null;
+    let rescuerX = 78;
+    let rescuerY = 410;
+    let animalX = 534;
+    let animalY = 0;
+    let animalFacing = 1;
+    let animalLabelVisible = true;
 
     const lengths = [5, 8, 10, 12];
     const scale = 32;
@@ -88,7 +94,6 @@
     const wallX = 510;
     const buildingWidth = 64;
     const standingX = 78;
-
     const dynamic = document.getElementById('dynamic');
     const heightRange = document.getElementById('heightRange');
     const angleRange = document.getElementById('angleRange');
@@ -101,11 +106,24 @@
       const radians = angle * Math.PI / 180;
       const opposite = ladder * Math.sin(radians);
       const run = ladder * Math.cos(radians);
-      return { radians, opposite, run, tipX: wallX, tipY: groundY - opposite * scale, baseX: wallX - run * scale, buildingTopY: groundY - buildingHeight * scale };
+      return {
+        radians,
+        opposite,
+        run,
+        tipX: wallX,
+        tipY: groundY - opposite * scale,
+        baseX: wallX - run * scale,
+        buildingTopY: groundY - buildingHeight * scale
+      };
     }
 
     function personGraphic(x, y) {
-      return `<g id="rescuer" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><circle cx="0" cy="-56" r="14" fill="#1e293b" /><path d="M0 -42V-16M0 -37L-18 -26M0 -37L18 -26M0 -16L-13 0M0 -16L13 0" fill="none" stroke="#1e293b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" /></g>`;
+      return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><circle cx="0" cy="-56" r="14" fill="#1e293b" /><path d="M0 -42V-16M0 -37L-18 -26M0 -37L18 -26M0 -16L-13 0M0 -16L13 0" fill="none" stroke="#1e293b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" /></g>`;
+    }
+
+    function animalGraphic() {
+      const label = animalLabelVisible ? '<text x="-41" y="-30" fill="#334155" font-size="15" font-weight="600">Poor animal</text>' : '';
+      return `<g transform="translate(${animalX.toFixed(1)} ${animalY.toFixed(1)})"><g transform="scale(${animalFacing} 1)"><ellipse cx="0" cy="0" rx="17" ry="11" fill="#f59e0b" /><circle cx="-11" cy="-9" r="7" fill="#fbbf24" /><path d="M-17 -14l-4 -9 9 5M-6 -15l3 -9 6 9" fill="#f59e0b" stroke="#92400e" stroke-width="2" /><circle cx="-13" cy="-10" r="1.5" fill="#1e293b" /><path d="M9 0l11 -7v14z" fill="#d97706" /><path d="M-6 10v7M7 10v7" stroke="#92400e" stroke-width="3" stroke-linecap="round" /></g>${label}</g>`;
     }
 
     function draw() {
@@ -113,25 +131,10 @@
       const middleX = (baseX + tipX) / 2;
       const middleY = (groundY + tipY) / 2;
       const rungCount = Math.max(7, Math.floor(ladder * 2));
-      const animalVisible = phase !== 'gone';
-      const approachFraction = 0.18;
-      let rescuerX = standingX;
-      let rescuerY = groundY;
-
-      if (rescuerProgress > 0) {
-        if (rescuerProgress < approachFraction) {
-          rescuerX = standingX + (baseX - standingX) * (rescuerProgress / approachFraction);
-        } else {
-          const p = (rescuerProgress - approachFraction) / (1 - approachFraction);
-          rescuerX = baseX + (tipX - baseX) * p;
-          rescuerY = groundY + (tipY - groundY) * p;
-        }
-      }
-
+      const verticalLabelX = wallX - 105;
       const verticalLabelY = (tipY + groundY) / 2;
       const messageGraphic = sceneMsg ? `<rect x="155" y="38" width="232" height="46" rx="10" fill="#fff" opacity=".96" /><text x="271" y="68" text-anchor="middle" fill="${rescued ? '#047857' : '#b45309'}" font-size="21" font-weight="bold">${sceneMsg}</text>` : '';
       const angleRadius = 44;
-      const verticalLabelX = wallX - 105;
 
       dynamic.innerHTML = `
         <rect x="${wallX}" y="${buildingTopY.toFixed(1)}" width="${buildingWidth}" height="${(groundY - buildingTopY).toFixed(1)}" fill="#f8fafc" stroke="#64748b" stroke-width="4" />
@@ -149,16 +152,14 @@
         <path d="M${baseX.toFixed(1)} ${groundY}H${(baseX + angleRadius).toFixed(1)}" fill="none" stroke="#7c3aed" stroke-width="2.8" />
         <path d="M${(baseX + angleRadius).toFixed(1)} ${groundY}A${angleRadius} ${angleRadius} 0 0 0 ${(baseX + angleRadius * Math.cos(radians)).toFixed(1)} ${(groundY - angleRadius * Math.sin(radians)).toFixed(1)}" fill="none" stroke="#7c3aed" stroke-width="2.8" />
         <text x="${(baseX + 62).toFixed(1)}" y="${groundY - 12}" fill="#6d28d9" font-size="19" font-weight="bold">${fmt(angle)}°</text>
-        <rect x="${(middleX - 40).toFixed(1)}" y="${(middleY - 82).toFixed(1)}" width="80" height="45" rx="10" fill="#fff" opacity=".7" />
-        <text x="${middleX.toFixed(1)}" y="${(middleY - 64).toFixed(1)}" text-anchor="middle" fill="#92400e" font-size="14" font-weight="bold">Ladder:</text>
-        <text x="${middleX.toFixed(1)}" y="${(middleY - 45).toFixed(1)}" text-anchor="middle" fill="#92400e" font-size="14" font-weight="bold">${ladder} m</text>
-        <rect x="${verticalLabelX + 18}" y="${(verticalLabelY - 7).toFixed(1)}" width="80" height="45" rx="10" fill="#fff" opacity=".7" />
-        <text x="${verticalLabelX + 60}" y="${(verticalLabelY + 10).toFixed(1)}" text-anchor="middle" fill="#6d28d9" font-size="14" font-weight="bold">Vertical:</text>
-        <text x="${verticalLabelX + 62}" y="${(verticalLabelY + 30).toFixed(1)}" text-anchor="middle" fill="#6d28d9" font-size="14" font-weight="bold">${fmt(opposite)} m</text>
+        <rect x="${(middleX - 48).toFixed(1)}" y="${(middleY - 55).toFixed(1)}" width="96" height="25" rx="7" fill="#fff" opacity=".76" />
+        <text x="${middleX.toFixed(1)}" y="${(middleY - 38).toFixed(1)}" text-anchor="middle" fill="#92400e" font-size="14" font-weight="bold">Ladder: ${ladder} m</text>
+        <rect x="${verticalLabelX}" y="${(verticalLabelY - 10).toFixed(1)}" width="108" height="25" rx="7" fill="#fff" opacity=".76" />
+        <text x="${verticalLabelX + 54}" y="${(verticalLabelY + 7).toFixed(1)}" text-anchor="middle" fill="#6d28d9" font-size="14" font-weight="bold">Vertical: ${fmt(opposite)} m</text>
         <rect x="${wallX + buildingWidth + 17}" y="${((buildingTopY + groundY) / 2 - 25).toFixed(1)}" width="100" height="50" rx="10" fill="#fff" opacity=".7" />
         <text x="${wallX + buildingWidth + 68}" y="${((buildingTopY + groundY) / 2 - 6).toFixed(1)}" text-anchor="middle" fill="#be123c" font-size="14" font-weight="bold">Building:</text>
         <text x="${wallX + buildingWidth + 68}" y="${((buildingTopY + groundY) / 2 + 13).toFixed(1)}" text-anchor="middle" fill="#be123c" font-size="14" font-weight="bold">${fmt(buildingHeight)} m</text>
-        ${animalVisible ? `<g id="animalMove" transform="translate(${wallX + 24} ${(buildingTopY - 15).toFixed(1)})"><g id="animalGraphic"><ellipse cx="0" cy="0" rx="17" ry="11" fill="#f59e0b" /><circle cx="-11" cy="-9" r="7" fill="#fbbf24" /><path d="M-17 -14l-4 -9 9 5M-6 -15l3 -9 6 9" fill="#f59e0b" stroke="#92400e" stroke-width="2" /><circle cx="-13" cy="-10" r="1.5" fill="#1e293b" /><path d="M9 0l11 -7v14z" fill="#d97706" /><path d="M-6 10v7M7 10v7" stroke="#92400e" stroke-width="3" stroke-linecap="round" /></g><text id="animalLabel" x="-41" y="-30" fill="#334155" font-size="15" font-weight="600">Poor animal</text></g>` : ''}
+        ${phase !== 'gone' ? animalGraphic() : ''}
         ${personGraphic(rescuerX, rescuerY)}
         ${messageGraphic}
       `;
@@ -178,66 +179,186 @@
       element.className = 'text-sm font-medium ' + (isGood ? 'text-emerald-700' : 'text-amber-700');
     }
 
+    function cancelAnimation() {
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      animationFrame = null;
+    }
+
     function resetScene() {
-      phase = 'ready'; sceneMsg = ''; rescued = false; tryAgain = false; rescuerProgress = 0;
-      rescueBtn.disabled = false; rescueBtn.textContent = 'Rescue!'; rescueBtn.classList.remove('opacity-60');
+      cancelAnimation();
+      phase = 'ready';
+      sceneMsg = '';
+      rescued = false;
+      tryAgain = false;
+      rescuerX = standingX;
+      rescuerY = groundY;
+      animalX = wallX + 24;
+      animalY = getGeometry().buildingTopY - 15;
+      animalFacing = 1;
+      animalLabelVisible = true;
+      rescueBtn.disabled = false;
+      rescueBtn.textContent = 'Rescue!';
+      rescueBtn.classList.remove('opacity-60');
       message('Choose a building height, ladder, and angle.', false);
     }
 
     function restart() {
-      angle = 30; ladder = 10; buildingHeight = 5;
-      heightRange.value = buildingHeight; angleRange.value = angle;
-      resetScene(); renderLadderButtons(); draw();
+      angle = 30;
+      ladder = 10;
+      buildingHeight = 5;
+      heightRange.value = buildingHeight;
+      angleRange.value = angle;
+      resetScene();
+      renderLadderButtons();
+      draw();
     }
 
     function renderLadderButtons() {
       document.getElementById('ladders').innerHTML = lengths.map(length => `<button type="button" data-length="${length}" class="ladderBtn rounded-lg border px-1 py-2 font-semibold ${length === ladder ? 'active' : 'hover:bg-orange-50'}" aria-pressed="${length === ladder}">🪜 ${length} m</button>`).join('');
-      document.querySelectorAll('.ladderBtn').forEach(button => button.onclick = () => { ladder = Number(button.dataset.length); resetScene(); renderLadderButtons(); draw(); });
+      document.querySelectorAll('.ladderBtn').forEach(button => {
+        button.onclick = () => {
+          ladder = Number(button.dataset.length);
+          resetScene();
+          renderLadderButtons();
+          draw();
+        };
+      });
     }
 
-    function setHeight(value) { if (!Number.isFinite(value)) return; buildingHeight = Math.min(10, Math.max(4, value)); heightRange.value = buildingHeight; resetScene(); draw(); }
-    function setAngle(value) { if (!Number.isFinite(value)) return; angle = Math.min(75, Math.max(15, value)); angleRange.value = angle; resetScene(); draw(); }
-    function setTryAgain() { tryAgain = true; rescueBtn.disabled = false; rescueBtn.classList.remove('opacity-60'); rescueBtn.textContent = 'Try again!'; }
+    function setHeight(value) {
+      if (!Number.isFinite(value)) return;
+      buildingHeight = Math.min(10, Math.max(4, value));
+      heightRange.value = buildingHeight;
+      resetScene();
+      draw();
+    }
 
-    function climbLadder(done) {
-      const rescuer = document.getElementById('rescuer');
-      const { baseX, tipX, tipY } = getGeometry();
+    function setAngle(value) {
+      if (!Number.isFinite(value)) return;
+      angle = Math.min(75, Math.max(15, value));
+      angleRange.value = angle;
+      resetScene();
+      draw();
+    }
+
+    function setTryAgain() {
+      tryAgain = true;
+      rescueBtn.disabled = false;
+      rescueBtn.classList.remove('opacity-60');
+      rescueBtn.textContent = 'Try again!';
+    }
+
+    function animate(duration, update, complete) {
       const startedAt = performance.now();
-      const duration = 1500;
-      const approachFraction = 0.18;
       function step(now) {
-        rescuerProgress = Math.min(1, (now - startedAt) / duration);
-        let x = standingX, y = groundY;
-        if (rescuerProgress < approachFraction) x = standingX + (baseX - standingX) * (rescuerProgress / approachFraction);
-        else { const p = (rescuerProgress - approachFraction) / (1 - approachFraction); x = baseX + (tipX - baseX) * p; y = groundY + (tipY - groundY) * p; }
-        rescuer.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
-        if (rescuerProgress < 1) requestAnimationFrame(step); else done();
+        const progress = Math.min(1, (now - startedAt) / duration);
+        update(progress);
+        draw();
+        if (progress < 1) animationFrame = requestAnimationFrame(step);
+        else {
+          animationFrame = null;
+          complete();
+        }
       }
-      requestAnimationFrame(step);
+      animationFrame = requestAnimationFrame(step);
+    }
+
+    function climbLadder(success) {
+      const { baseX, tipX, tipY } = getGeometry();
+      const approachFraction = 0.18;
+      phase = 'climbing';
+      animalLabelVisible = false;
+      message('Walking to the ladder…', false);
+
+      animate(1500, progress => {
+        if (progress < approachFraction) {
+          rescuerX = standingX + (baseX - standingX) * (progress / approachFraction);
+          rescuerY = groundY;
+        } else {
+          const p = (progress - approachFraction) / (1 - approachFraction);
+          rescuerX = baseX + (tipX - baseX) * p;
+          rescuerY = groundY + (tipY - groundY) * p;
+        }
+      }, () => {
+        if (success) beginSuccessfulReturn();
+        else beginFailedRescue();
+      });
+    }
+
+    function beginSuccessfulReturn() {
+      const { tipX, tipY } = getGeometry();
+      rescued = true;
+      phase = 'rescued';
+      sceneMsg = 'You rescued it!';
+      message(sceneMsg, true);
+      draw();
+
+      setTimeout(() => {
+        animate(520, progress => {
+          animalX = wallX + 24 + (tipX - (wallX + 24)) * progress;
+          animalY = getGeometry().buildingTopY - 15 + ((tipY - 12) - (getGeometry().buildingTopY - 15)) * progress;
+        }, descendTogether);
+      }, 420);
+    }
+
+    function descendTogether() {
+      const { baseX, tipX, tipY } = getGeometry();
+      phase = 'descending';
+      animate(1450, progress => {
+        rescuerX = tipX + (baseX - tipX) * progress;
+        rescuerY = tipY + (groundY - tipY) * progress;
+        const animalProgress = Math.max(0, (progress - 0.10) / 0.90);
+        animalX = tipX + (baseX - tipX) * animalProgress;
+        animalY = (tipY - 12) + (groundY - 12 - (tipY - 12)) * animalProgress;
+      }, walkHome);
+    }
+
+    function walkHome() {
+      const { baseX } = getGeometry();
+      phase = 'returning';
+      animate(900, progress => {
+        rescuerX = baseX + (standingX - baseX) * progress;
+        rescuerY = groundY;
+        animalX = baseX + (standingX + 30 - baseX) * progress;
+        animalY = groundY - 12;
+      }, () => {
+        rescuerX = standingX;
+        rescuerY = groundY;
+        animalX = standingX + 30;
+        animalY = groundY - 12;
+        phase = 'returned';
+        draw();
+        setTryAgain();
+      });
+    }
+
+    function beginFailedRescue() {
+      rescued = false;
+      phase = 'missed';
+      sceneMsg = 'It is gone!';
+      message(sceneMsg, false);
+      animalWalkAway();
     }
 
     function animalWalkAway() {
-      const mover = document.getElementById('animalMove');
-      const graphic = document.getElementById('animalGraphic');
-      const label = document.getElementById('animalLabel');
-      if (!mover || !graphic) { phase = 'gone'; draw(); setTryAgain(); return; }
-      if (label) label.setAttribute('display', 'none');
       const { buildingTopY } = getGeometry();
-      const startedAt = performance.now();
-      const turnFraction = 0.3;
-      const duration = 1250;
       const startX = wallX + 24;
       const endX = wallX + buildingWidth - 17;
-      function step(now) {
-        const progress = Math.min(1, (now - startedAt) / duration);
-        let x = startX, scaleX = 1;
-        if (progress < turnFraction) scaleX = 1 - 2 * (progress / turnFraction);
-        else { scaleX = -1; x = startX + (endX - startX) * ((progress - turnFraction) / (1 - turnFraction)); }
-        mover.setAttribute('transform', `translate(${x.toFixed(1)} ${(buildingTopY - 15).toFixed(1)})`);
-        graphic.setAttribute('transform', `scale(${scaleX.toFixed(2)} 1)`);
-        if (progress < 1) requestAnimationFrame(step); else { phase = 'gone'; draw(); setTryAgain(); }
-      }
-      requestAnimationFrame(step);
+      phase = 'missed';
+      animate(1250, progress => {
+        if (progress < 0.3) {
+          animalFacing = 1 - 2 * (progress / 0.3);
+          animalX = startX;
+        } else {
+          animalFacing = -1;
+          animalX = startX + (endX - startX) * ((progress - 0.3) / 0.7);
+        }
+        animalY = buildingTopY - 15;
+      }, () => {
+        phase = 'gone';
+        draw();
+        setTryAgain();
+      });
     }
 
     heightRange.oninput = event => setHeight(Number(event.target.value));
@@ -248,17 +369,19 @@
     angleInput.onkeydown = event => { if (event.key === 'Enter') event.target.blur(); };
 
     rescueBtn.onclick = () => {
-      if (tryAgain) { restart(); return; }
-      if (phase === 'climbing') return;
+      if (tryAgain) {
+        restart();
+        return;
+      }
+      if (phase !== 'ready') return;
       const { opposite } = getGeometry();
       const success = Math.abs(opposite - buildingHeight) <= 0.1;
-      phase = 'climbing'; rescueBtn.disabled = true; rescueBtn.classList.add('opacity-60'); message('Walking to the ladder…', false);
-      climbLadder(() => {
-        rescued = success; phase = success ? 'rescued' : 'missed'; sceneMsg = success ? 'You rescued it!' : 'It is gone!'; draw(); message(sceneMsg, success);
-        if (success) setTryAgain(); else animalWalkAway();
-      });
+      rescueBtn.disabled = true;
+      rescueBtn.classList.add('opacity-60');
+      climbLadder(success);
     };
 
+    resetScene();
     renderLadderButtons();
     draw();
   </script>
